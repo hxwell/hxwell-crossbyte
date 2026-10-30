@@ -80,17 +80,24 @@ def run_features(test, check, request, header, cookie_header, raw_exchange, port
         try:
             for _ in range(32):
                 sock = socket.create_connection(("127.0.0.1", port), timeout=8)
-                sockets.append(sock)
+                reader = sock.makefile("rb")
+                sockets.append((sock, reader))
                 sock.sendall(b"GET /feature/hold HTTP/1.1\r\nHost: localhost\r\n\r\n")
-            deadline = time.monotonic() + 3
-            while True:
-                status = request(port, "/hello/overflow")[0]
-                if status == 503:
-                    break
-                check(time.monotonic() < deadline, "admission cap was not enforced")
-                time.sleep(0.02)
+                # Acknowledge admission before opening the next holder. Racing
+                # a probe against the last holder can refuse the holder itself,
+                # leaving 31 held slots and allowing every subsequent probe.
+                check(reader.readline().startswith(b"HTTP/1.1 200 "))
+                while True:
+                    field = reader.readline()
+                    check(field, "holder disconnected before headers")
+                    if field == b"\r\n":
+                        break
+                size = int(reader.readline(), 16)
+                check(reader.read(size) == b"held" and reader.read(2) == b"\r\n")
+            check(request(port, "/hello/overflow")[0] == 503, "admission cap was not enforced")
         finally:
-            for sock in sockets:
+            for sock, reader in sockets:
+                reader.close()
                 sock.close()
         deadline = time.monotonic() + 3
         while request(port, "/hello/recovered")[0] != 200:

@@ -58,7 +58,12 @@ class FeatureRoutes {
                     : new hx.well.http.encoding.DeflateEncodingOptions(Std.parseInt(req.route("kind")), 1024);
                 return (response : AbstractResponse);
             });
-            Route.get("/hold", req -> (ResponseBuilder.asAsync() : AbstractResponse));
+            Route.get("/hold", req -> {
+                ResponseStatic.header("Content-Type", "text/plain");
+                req.context.beginWrite();
+                req.context.writeString("held");
+                return (ResponseBuilder.asAsync() : AbstractResponse);
+            });
             Route.get("/login/{guard}/{id}", req -> {
                 AuthStatic.guard(req.route("guard")).login(new Identity(req.route("id")));
                 return ("logged in" : AbstractResponse);
