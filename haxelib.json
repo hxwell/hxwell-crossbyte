@@ -1,0 +1,12 @@
+{
+  "name": "hxwell-crossbyte",
+  "url": "https://github.com/hxwell/hxwell-crossbyte",
+  "license": "MIT",
+  "tags": ["hxwell", "crossbyte", "http", "server", "jvm"],
+  "description": "Crossbyte HTTP/2 and WebSocket transport for HxWell, with JVM virtual-thread handlers and bounded streaming.",
+  "version": "0.1.0",
+  "classPath": "src",
+  "releasenote": "HTTP/1.1, HTTP/2, TLS, WebSocket/Socket.IO, encoding options and JVM/Neko compatibility tests with CI.",
+  "contributors": ["barisyild"],
+  "dependencies": {"hxwell": "", "crossbyte": ""}
+}
