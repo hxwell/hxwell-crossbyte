@@ -25,7 +25,7 @@ class CrossbyteDriver extends AbstractHttpDriver<CrossbyteDriverConfig> {
     var accepting:Bool = false;
     var webSockets:Array<WebSocketBridge> = [];
     #if !jvm
-    var executor:hx.concurrent.executor.Executor;
+    var executor:hx.well.http.driver.crossbyte.internal.WorkerPool;
     #end
 
     public function new(config:CrossbyteDriverConfig) {
@@ -59,7 +59,7 @@ class CrossbyteDriver extends AbstractHttpDriver<CrossbyteDriverConfig> {
         http.middleware = [(handler, next) -> dispatch(handler)];
         http.validate();
         #if !jvm
-        executor = hx.concurrent.executor.Executor.create(config.poolSize);
+        executor = new hx.well.http.driver.crossbyte.internal.WorkerPool(config.poolSize);
         #end
         var ready = new Lock();
         var failure:Dynamic = null;
