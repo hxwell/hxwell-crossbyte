@@ -104,11 +104,40 @@ class CrossbyteDriverContext implements IDriverContext {
         var head = new ResponseHead(response, inheritedResponse(), request.header("Accept-Encoding", ""));
         var source = response.toInput();
         try {
+            var bodiless = head.status == 204 || head.status == 304;
+            // A body that fits in one slice, the usual case, is read here and
+            // handed to the runtime whole, without waiting: one hand-off and
+            // one write with its length, rather than a round trip each for
+            // the head, the body and the end.
+            var prefix:Bytes = null;
+            if(head.deflate == null) {
+                var whole:Bytes;
+                try { whole = bodiless ? Bytes.alloc(0) : readUpTo(source, ResponseBridge.CHUNK_SIZE); }
+                catch(error:Dynamic) {
+                    // As when the body fails partway through a stream: the
+                    // head goes out and the response is then cut short.
+                    bridge.begin(head);
+                    responseStarted = true;
+                    throw error;
+                }
+                if(bodiless || whole.length <= ResponseBridge.CHUNK_SIZE) {
+                    source.close();
+                    responseStarted = true;
+                    closed = true;
+                    bridge.respond(head, whole);
+                    release();
+                    if(response.after != null) response.after();
+                    return;
+                }
+                prefix = whole;
+            }
             bridge.begin(head);
             responseStarted = true;
             setEncoder(head);
-            if(request.method != "HEAD" && head.status != 204 && head.status != 304)
+            if(request.method != "HEAD" && !bodiless) {
+                if(prefix != null) writeFullBytes(prefix, 0, prefix.length);
                 copyInput(source, writeChunkSize);
+            }
             source.close();
             close();
         } catch(error:Dynamic) {
@@ -192,10 +221,28 @@ class CrossbyteDriverContext implements IDriverContext {
         }
         closed = true;
         if(responseStarted) bridge.end(); else bridge.abort();
+        release();
+    }
+
+    function release():Void {
         body = null;
         requestInput = null;
         baseResponse = null;
         deferredResponse = null;
+    }
+
+    /** What `source` has, read until it ends or until more than `limit` bytes are in. **/
+    function readUpTo(source:Input, limit:Int):Bytes {
+        var buffer = Bytes.alloc(limit + 1);
+        var count = 0;
+        while(count < buffer.length) {
+            var read:Int;
+            try { read = source.readBytes(buffer, count, buffer.length - count); }
+            catch(_:haxe.io.Eof) { break; }
+            if(read <= 0) throw new Exception("Input made no progress");
+            count += read;
+        }
+        return count == buffer.length ? buffer : buffer.sub(0, count);
     }
 
     public function abort():Void {

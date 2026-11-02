@@ -53,15 +53,26 @@ class UpstreamAccess {
     }
 
     public static function beginResponse(handler:HTTPRequestHandler, head:ResponseHead):HTTPResponseStream {
-        if(head.nativeCompression) return handler.beginResponse(head.status, head.contentType, head.headers, head.reason);
+        var stream:HTTPResponseStream = null;
+        withNegotiation(handler, head, () -> stream = handler.beginResponse(head.status, head.contentType, head.headers, head.reason));
+        return stream;
+    }
+
+    /** A whole response in one native call, which sends it with its length. **/
+    public static function respondBytes(handler:HTTPRequestHandler, head:ResponseHead, body:Bytes):Void {
+        var data = crossbyte.io.ByteArray.fromBytes(body);
+        withNegotiation(handler, head, () -> handler.respondBytes(head.status, head.contentType, data, head.headers, head.reason));
+    }
+
+    static function withNegotiation(handler:HTTPRequestHandler, head:ResponseHead, call:Void->Void):Void {
+        if(head.nativeCompression) { call(); return; }
         // Limit this response's native negotiation without changing the server's
         // compression policy, which can be shared by several I/O runtimes.
         // HxWell already holds an independent snapshot of request headers.
         var previous = handler.__headers.get("accept-encoding");
         var generation = handler.__requestGeneration;
         handler.__headers.set("accept-encoding", "identity");
-        var stream:HTTPResponseStream;
-        try { stream = handler.beginResponse(head.status, head.contentType, head.headers, head.reason); }
+        try call()
         catch(error:Dynamic) {
             if(handler.__requestGeneration == generation) {
                 if(previous == null) handler.__headers.remove("accept-encoding"); else handler.__headers.set("accept-encoding", previous);
@@ -71,6 +82,5 @@ class UpstreamAccess {
         if(handler.__requestGeneration == generation) {
             if(previous == null) handler.__headers.remove("accept-encoding"); else handler.__headers.set("accept-encoding", previous);
         }
-        return stream;
     }
 }

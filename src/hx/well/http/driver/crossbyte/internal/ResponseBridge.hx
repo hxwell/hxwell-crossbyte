@@ -73,6 +73,32 @@ class ResponseBridge {
         if(operation.error != null) throw operation.error;
     }
 
+    /**
+     * A whole response whose body is known: handed to the runtime in one
+     * call that is not waited for, and sent there in one write with its
+     * length. The worker goes on at once. A failure on the runtime aborts the
+     * response, which is all a caller that had waited could have done.
+     */
+    public function respond(head:ResponseHead, body:Bytes):Void {
+        var send = () -> {
+            if(gone || completed || started) return;
+            var current = handler;
+            started = true;
+            // Detached first: a response that completes in the call settles
+            // the native handler, possibly dispatching its next request.
+            release();
+            handler = null;
+            stream = null;
+            try UpstreamAccess.respondBytes(current, head, body)
+            catch(error:Dynamic) {
+                UpstreamAccess.abort(current);
+                trace(error);
+            }
+        };
+        if(runtime.__isOwnThread()) send();
+        else if(!runtime.post(send)) throw new Exception("Crossbyte runtime has stopped");
+    }
+
     public function begin(head:ResponseHead):Void {
         run(operation -> {
             if(started) throw new Exception("HTTP response already started");
