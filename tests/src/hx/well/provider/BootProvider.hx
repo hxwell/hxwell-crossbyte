@@ -14,6 +14,9 @@ import hx.well.route.Route;
 
 class BootProvider extends AbstractProvider {
     public function boot():Void {
+        #if haxe5
+        features.Haxe5MapCompatibility.verify();
+        #end
         hx.well.facades.Environment.set("APP_NAME", "crossbyte_test");
         hx.well.facades.Environment.set("APP_KEY", haxe.crypto.Base64.encode(Bytes.ofString("0123456789abcdef0123456789abcdef")));
         Route.get("/hello/{name}", req -> (new JsonResponse({

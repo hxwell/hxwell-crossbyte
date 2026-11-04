@@ -23,9 +23,11 @@ connection's owning Crossbyte runtime through its `post` API.
 
 The published Crossbyte version was 1.0.0 when this adapter was validated. Install
 the tested Git snapshot; the adapter checks its version at compile time.
-Haxe 5 compatibility is provided by type-only aliases under `compat/haxe5`.
+Haxe 5 compatibility is provided by aliases and a map-size extension under `compat/haxe5`.
 They bridge the moved Java primitive types, the native class helpers and the
-legacy HTTP/2 secondary-type reference. The Crossbyte runtime source stays
+legacy HTTP/2 secondary-type reference. A `HashMap.size()` extension keeps the
+unmodified haxe-concurrent 5.1.5 package usable with the preview standard library.
+The Crossbyte runtime source stays
 unchanged. The aliases are added only for Haxe 5.0.0-preview.1 on JVM; the
 Haxe 4 classpath and native targets are unchanged. No extra virtual thread is
 introduced: JVM requests already enter `HttpHandler.process()` through HxWell's

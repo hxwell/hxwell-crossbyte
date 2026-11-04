@@ -10,11 +10,12 @@ class Compatibility {
         if(Context.defined("haxe5")) {
             if(!Context.defined("jvm") || Context.definedValue("haxe") != "5.0.0-preview.1")
                 Context.fatalError("Haxe 5 support is verified with 5.0.0-preview.1 on JVM only.", Context.currentPos());
-            // Type aliases only: retain the same Crossbyte runtime source and
+            // Retain the same Crossbyte runtime source and
             // Java primitive array ABI on the new Haxe 5 JVM standard library.
             var root = Path.directory(Context.resolvePath("hx/well/http/driver/crossbyte/macro/Compatibility.hx"));
             for(_ in 0...7) root = Path.directory(root);
             Compiler.addClassPath(root + "/compat/haxe5");
+            Compiler.addGlobalMetadata("haxe.ds.HashMap", "@:using(hx.well.http.driver.crossbyte.compat.HashMapTools)", false, true, false);
         }
         if(!Context.defined("target.threaded") || Context.defined("js"))
             Context.fatalError("hxwell-crossbyte requires a threaded sys target. JVM with Java 21+ is the verified target.", Context.currentPos());
