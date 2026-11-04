@@ -11,26 +11,30 @@ connection's owning Crossbyte runtime through its `post` API.
 
 ## Requirements and installation
 
-- **Haxe 4.3.7** and **Java 21+**, or Neko 2.x. Local validation uses Java 25.0.2
-  and Neko 2.4.1; CI covers Java 21, Java 25 and Neko/SQLite.
+- **Haxe 4.3.7** or **5.0.0-preview.1** with **Java 21+**. Haxe 5 requires
+  `-lib hx4compat` (1.0.0). Neko remains supported with Haxe 4.3.7. CI covers
+  both JVM compilers on Java 21/25 and Haxe 4/Neko/SQLite.
 - HxWell [`7944b82`](https://github.com/hxwell/hxwell/commit/7944b82b589646baf67dba5f2a1954b9f040b30e)
   or newer, including the JSON status, const guard, command argument and
   Socket.IO concurrency fixes verified by this suite.
 - Crossbyte's **1.0.1 Git snapshot**, tested at
-  [`acc6de8994e0292ae48706017a2eafa4acbaedbf`](https://github.com/DimensionscapeOrg/crossbyte/commit/acc6de8994e0292ae48706017a2eafa4acbaedbf).
+  [`45628a59667de98649c23cbcd391513a1ef714c4`](https://github.com/DimensionscapeOrg/crossbyte/commit/45628a59667de98649c23cbcd391513a1ef714c4).
 - Emitter 2.0.0 and HxWell's normal Haxelib dependencies.
 
 The published Crossbyte version was 1.0.0 when this adapter was validated. Install
 the tested Git snapshot; the adapter checks its version at compile time.
-Crossbyte 1.0.1 fails to compile unchanged on Haxe 5.0.0-preview.1 in
-`H2ConnectionHandler`; this adapter reports that requirement before compiling it.
-No system compiler replacement is necessary: a separate Haxe 4.3.7 executable can
-build the application.
+Haxe 5 compatibility is provided by type-only aliases under `compat/haxe5`.
+They bridge the moved Java primitive types, the native class helpers and the
+legacy HTTP/2 secondary-type reference. The Crossbyte runtime source stays
+unchanged. The aliases are added only for Haxe 5.0.0-preview.1 on JVM; the
+Haxe 4 classpath and native targets are unchanged. No extra virtual thread is
+introduced: JVM requests already enter `HttpHandler.process()` through HxWell's
+`jvm.thread.VirtualThread.create(work).start()` helper.
 
 ```sh
 haxelib install emitter 2.0.0
 haxelib install hxjava
-haxelib git crossbyte https://github.com/DimensionscapeOrg/crossbyte.git acc6de8994e0292ae48706017a2eafa4acbaedbf
+haxelib git crossbyte https://github.com/DimensionscapeOrg/crossbyte.git 45628a59667de98649c23cbcd391513a1ef714c4
 haxelib dev hxwell /path/to/hxwell
 haxelib dev hxwell-crossbyte /path/to/hxwell-crossbyte
 ```
@@ -53,7 +57,7 @@ return [CrossbyteInstance.builder()
     .build()];
 ```
 
-Build from the application folder using the Haxe 4.3.7 executable:
+Build from the application folder using Haxe 4.3.7 (or add `-lib hx4compat` with Haxe 5.0.0-preview.1):
 
 ```sh
 haxe -cp src -lib hxwell-crossbyte -lib hxjava --jvm out/server.jar

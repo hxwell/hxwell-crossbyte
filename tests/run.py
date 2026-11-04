@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compile a real HxWell application and test the Crossbyte transport over TCP.
 
-Requires Haxe 4.3.7, Java 21+, the HxWell/Crossbyte/Emitter source checkouts, and
+Requires Haxe 4.3.7 or 5.0.0-preview.1, Java 21+, the HxWell/Crossbyte/Emitter source checkouts, and
 tests/requirements.txt. All generated files and session state stay in out/.
 """
 import argparse
@@ -407,7 +407,8 @@ def main():
     parser.add_argument("--concurrent", type=Path, help="Optional exact haxe-concurrent source directory")
     args = parser.parse_args()
     version = subprocess.check_output([args.haxe, "--version"], text=True).strip()
-    check(version == "4.3.7", f"Crossbyte 1.0.1 integration is verified with Haxe 4.3.7; selected: {version}")
+    check(version in ("4.3.7", "5.0.0-preview.1"), f"Unsupported Haxe compiler: {version}")
+    check(version == "4.3.7" or args.target == "jvm", "Haxe 5 preview is verified on JVM only")
     (ROOT / "out").mkdir(exist_ok=True)
     report_path = ROOT / f"out/report-{args.target}.json"
     work = Path(tempfile.mkdtemp(prefix=f"integration-{args.target}-", dir=ROOT / "out"))
@@ -424,10 +425,12 @@ def main():
     hxwell, crossbyte, emitter = args.hxwell.resolve(), args.crossbyte.resolve(), args.emitter.resolve()
     # Test the real package/dependency path while keeping all dev registrations
     # local to this disposable build directory (never change global haxelib).
-    local_libraries(work, ROOT, hxwell, crossbyte, emitter, args.concurrent)
+    local_libraries(work, ROOT, hxwell, crossbyte, emitter, args.concurrent, haxe5=version.startswith("5."))
     command = [args.haxe, "-lib", "hxwell-crossbyte", "-cp", str(hxwell / "tests/e2e/server/src"), "-cp", str(ROOT / "tests/src")]
     for define in ("disable_env", "disable_cli", "analyzer-optimize"):
         command += ["-D", define]
+    if version.startswith("5."):
+        command += ["-lib", "hx4compat"]
     # HxWell's extraParams.hxml supplies its main class.
     command += ["-lib", "hxjava", "--jvm", "server.jar"] if args.target == "jvm" else ["--neko", "server.n"]
     (work / "build-command.json").write_text(json.dumps(command, indent=2))

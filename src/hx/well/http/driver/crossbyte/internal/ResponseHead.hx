@@ -19,7 +19,11 @@ class ResponseHead {
     public function new(response:Response, base:Response, acceptEncoding:String = "") {
         base.validate();
         response.validate();
-        status = response.statusCode ?? base.statusCode ?? 200;
+        // Keep the nullable value boxed until the final fallback. Haxe 5
+        // preview 1 unboxes an intermediate chained ?? result to zero.
+        var selected:Null<Int> = response.statusCode;
+        if(selected == null) selected = base.statusCode;
+        status = selected == null ? 200 : selected;
         if(status < 200 || status > 599)
             throw new haxe.Exception("A final Crossbyte response requires a status from 200 through 599");
         reason = response.statusMessage ?? base.statusMessage;

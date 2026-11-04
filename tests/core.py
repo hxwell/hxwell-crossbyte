@@ -21,6 +21,9 @@ def main():
     parser.add_argument("--target", choices=["jvm", "neko"], default="jvm")
     parser.add_argument("--concurrent", type=Path)
     args = parser.parse_args()
+    version = subprocess.check_output([args.haxe, "--version"], text=True).strip()
+    if version not in ("4.3.7", "5.0.0-preview.1") or (version.startswith("5.") and args.target != "jvm"):
+        raise ValueError("Use Haxe 4.3.7, or Haxe 5.0.0-preview.1 on JVM")
     hxwell, crossbyte, emitter = args.hxwell.resolve(), args.crossbyte.resolve(), args.emitter.resolve()
     (ROOT / "out").mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix=f"core-{args.target}-", dir=ROOT / "out"))
@@ -28,12 +31,15 @@ def main():
     (work / "out").mkdir()
     shutil.copytree(hxwell / "tests/unit/public", work / "public")
     shutil.copy2(hxwell / "tests/unit/secrets.txt", work / "secrets.txt")
-    local_libraries(work, ROOT, hxwell, crossbyte, emitter, args.concurrent)
+    local_libraries(work, ROOT, hxwell, crossbyte, emitter, args.concurrent, haxe5=version.startswith("5."))
     hxml = (hxwell / "tests/unit/build.hxml").read_text()
     hxml = hxml.replace("-cp ../../src", f"-cp {hxwell}/src").replace("-cp src", f"-cp {hxwell}/tests/unit/src")
     hxml += (f"\n-cp {crossbyte}/src\n-cp {emitter}/src\n"
              "--macro crossbyte._internal.macro.HostPlatform.define()\n"
              "--macro crossbyte._internal.macro.StdOverrides.use()\n")
+    hxml += f"-cp {ROOT}/src\n--macro hx.well.http.driver.crossbyte.macro.Compatibility.check()\n"
+    if version.startswith("5."):
+        hxml += "-lib hx4compat\n"
     if args.target == "jvm":
         hxml += "-lib hxjava\n-D security_socket_tests\n--jvm test.jar\n"
         command = ["java", "-Xmx128m", "-jar", "test.jar"]
@@ -41,7 +47,7 @@ def main():
         hxml += "--neko test.n\n"
         command = ["neko", "test.n"]
     (work / "build.hxml").write_text(hxml)
-    report = {"success": False, "target": args.target, "workdir": str(work), "hxwellRevision": revision(hxwell), "crossbyteRevision": revision(crossbyte)}
+    report = {"success": False, "target": args.target, "haxe": version, "workdir": str(work), "hxwellRevision": revision(hxwell), "crossbyteRevision": revision(crossbyte)}
     try:
         with (work / "build.log").open("w") as log:
             subprocess.run([args.haxe, "build.hxml"], cwd=work, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=180)

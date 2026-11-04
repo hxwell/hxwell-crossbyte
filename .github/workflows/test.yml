@@ -11,16 +11,18 @@ permissions:
 
 jobs:
   compatibility:
-    name: Haxe 4.3.7 / ${{ matrix.target }} / Java ${{ matrix.java }}
+    name: Haxe ${{ matrix.haxe }} / ${{ matrix.target }} / Java ${{ matrix.java }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {target: jvm, java: '21'}
-          - {target: jvm, java: '25'}
-          - {target: neko, java: '21'}
+          - {target: jvm, java: '21', haxe: '4.3.7'}
+          - {target: jvm, java: '25', haxe: '4.3.7'}
+          - {target: neko, java: '21', haxe: '4.3.7'}
+          - {target: jvm, java: '21', haxe: '5.0.0-preview.1'}
+          - {target: jvm, java: '25', haxe: '5.0.0-preview.1'}
     steps:
       - name: Checkout driver
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,7 +39,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: DimensionscapeOrg/crossbyte
-          ref: acc6de8994e0292ae48706017a2eafa4acbaedbf
+          ref: 45628a59667de98649c23cbcd391513a1ef714c4
           path: dependencies/crossbyte
           persist-credentials: false
       - name: Checkout Emitter 2.0.0
@@ -50,7 +52,7 @@ jobs:
       - name: Setup Haxe
         uses: krdlab/setup-haxe@18e4b483cfffca2fb8881530bf8a6cec39dac8fb # v2
         with:
-          haxe-version: '4.3.7'
+          haxe-version: ${{ matrix.haxe }}
       - name: Setup Java
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
@@ -69,6 +71,7 @@ jobs:
           haxelib install crypto 1.3.0 --always --quiet
           haxelib install hxjava 4.2.0 --always --quiet
           haxelib install utest 1.13.2 --always --quiet
+          if [ "${{ matrix.haxe }}" = "5.0.0-preview.1" ]; then haxelib install hx4compat 1.0.0 --always --quiet; fi
           python -m pip install -r tests/requirements.txt
       - name: Test real HxWell HTTP application
         run: >-
